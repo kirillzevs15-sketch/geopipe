@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1faa59" id="metaTheme">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ГеоБаттл</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+@property --bg1{syntax:'<color>';inherits:true;initial-value:#ffffff}
+@property --bg2{syntax:'<color>';inherits:true;initial-value:#c9f2d6}
+@property --card{syntax:'<color>';inherits:true;initial-value:#ffffff}
+@property --text{syntax:'<color>';inherits:true;initial-value:#12351f}
+@property --accent{syntax:'<color>';inherits:true;initial-value:#1faa59}
+@property --accent2{syntax:'<color>';inherits:true;initial-value:#0f8a43}
+:root{
+ --bg1:#ffffff;--bg2:#c9f2d6;--card:#ffffff;--text:#12351f;--muted:#5b7a66;--accent:#1faa59;--accent2:#0f8a43;--onacc:#fff;
+ --ok:#1faa59;--warn:#f0a500;--bad:#e0443e;--line:rgba(18,53,31,.14);--mapf:none;--shadow:0 6px 18px rgba(15,110,60,.18);
+ --u:#c9f2d6;--s:#fff0b8;--x:#ffd0cc;--e:rgba(0,0,0,.05);
+ transition:--bg1 .6s,--bg2 .6s,--card .6s,--text .6s,--accent .6s,--accent2 .6s;
+}
+[data-theme=dark]{--bg1:#0c1612;--bg2:#1c3126;--card:#1b2b22;--text:#e6f4ea;--muted:#8fb09b;--accent:#35d27a;--accent2:#1c9a58;--onacc:#04170d;--line:rgba(230,244,234,.16);--shadow:0 6px 18px rgba(0,0,0,.45);--mapf:invert(1) hue-rotate(180deg) brightness(.82) contrast(.95) saturate(.7);--u:#1d5a38;--s:#5b4c14;--x:#6b2a27;--e:rgba(255,255,255,.07)}
+[data-theme=blue]{--bg1:#ffffff;--bg2:#c8e2ff;--card:#ffffff;--text:#10294d;--muted:#5a7396;--accent:#2a7de1;--accent2:#1257b3;--line:rgba(16,41,77,.14);--shadow:0 6px 18px rgba(30,100,200,.2);--u:#c6e6ff}
+[data-theme=sunset]{--bg1:#ffe9b8;--bg2:#ff8f84;--card:#fff6ec;--text:#45152f;--muted:#895064;--accent:#e2455f;--accent2:#b82a6b;--line:rgba(69,21,47,.16);--shadow:0 6px 18px rgba(190,50,90,.25);--u:#ffd9a8}
+[data-theme=pink]{--bg1:#ffffff;--bg2:#ffcfe6;--card:#ffffff;--text:#4a1636;--muted:#94587a;--accent:#e8489b;--accent2:#b82a77;--line:rgba(74,22,54,.14);--shadow:0 6px 18px rgba(220,70,150,.22);--u:#ffd6ec}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font:17px/1.35 system-ui,-apple-system,Roboto,"Segoe UI",sans-serif;color:var(--text);background:linear-gradient(165deg,var(--bg1),var(--bg2)) fixed;user-select:none;-webkit-user-select:none}
+button{font:inherit;color:inherit}
+#app{position:relative;max-width:520px;height:100dvh;margin:0 auto}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;padding:12px 14px calc(14px + env(safe-area-inset-bottom));overflow-y:auto;overflow-x:hidden}
+.screen.active{display:flex;animation:fade .3s ease}
+@keyframes fade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.hidden{display:none!important}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.top h1,.top h2{margin:0;flex:1;font-size:24px}
+.logo{font-size:34px}
+.icon{width:50px;height:50px;border-radius:16px;border:0;background:var(--card);box-shadow:var(--shadow);font-size:24px;cursor:pointer;flex:none}
+.icon:active{transform:scale(.92)}
+.sub{color:var(--muted);margin:0 0 14px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.btn{min-height:60px;border:0;border-radius:20px;font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--onacc);box-shadow:var(--shadow);padding:0 18px;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;cursor:pointer;transition:transform .1s,opacity .2s}
+.btn:active{transform:scale(.97)}
+.btn.sec{background:var(--card);color:var(--text);border:2px solid var(--accent);box-shadow:none}
+.btn.red{background:linear-gradient(135deg,#f0625b,#c92f2a);color:#fff}
+.btn.big{min-height:76px;font-size:24px;justify-content:flex-start;padding-left:24px}
+.btn:disabled{opacity:.45;pointer-events:none}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{border:0;background:var(--card);border-radius:20px;padding:14px 4px;box-shadow:var(--shadow);font-size:30px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.tile span{font-size:14px;font-weight:600}
+.tile:active{transform:scale(.95)}
+.card{background:var(--card);border-radius:20px;padding:14px;box-shadow:var(--shadow)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.chip{border:2px solid var(--line);background:var(--card);border-radius:16px;min-height:50px;padding:0 16px;font-weight:600;cursor:pointer;transition:all .2s}
+.chip.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--onacc);border-color:transparent;transform:scale(1.03)}
+h3{margin:10px 0 0;font-size:16px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.sw{width:64px;height:36px;border-radius:20px;border:0;background:var(--line);position:relative;cursor:pointer;transition:background .25s;flex:none}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:28px;height:28px;border-radius:50%;background:#fff;transition:transform .25s;box-shadow:0 2px 4px rgba(0,0,0,.25)}
+.sw.on{background:var(--accent)}.sw.on::after{transform:translateX(28px)}
+.gbar{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.gbar .icon{width:44px;height:44px;font-size:20px}
+.qno{font-weight:800;background:var(--card);border-radius:14px;padding:8px 12px;box-shadow:var(--shadow)}
+.board{flex:1;text-align:center;font-size:15px}
+.board b{font-size:18px}
+.timer{min-width:52px;text-align:center;font-weight:800;font-size:20px;background:var(--card);border-radius:14px;padding:7px 10px;box-shadow:var(--shadow)}
+.timer.low{background:var(--bad);color:#fff;animation:pulse .5s infinite alternate}
+@keyframes pulse{to{transform:scale(1.08)}}
+.qcard{background:var(--card);border-radius:18px;padding:12px 14px;box-shadow:var(--shadow);margin-bottom:8px;font-size:18px;text-align:center}
+.qcard b{display:block;font-size:26px;line-height:1.15}
+.tag{display:inline-block;font-size:12px;background:var(--line);border-radius:10px;padding:2px 9px;color:var(--muted);margin-top:4px}
+#s-map{padding-left:10px;padding-right:10px;overflow:hidden}
+#mapBox{position:relative;flex:1;min-height:180px;border-radius:20px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:10px}
+#map{position:absolute;inset:0;background:#cfe8f4}
+.leaflet-tile-pane{filter:var(--mapf);transition:filter .6s}
+.leaflet-container{font:inherit}
+.pin{font-size:30px;line-height:34px;text-align:center;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4));animation:drop .3s ease}
+@keyframes drop{from{transform:translateY(-20px);opacity:0}to{transform:none;opacity:1}}
+.nomap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-weight:600}
+#quiz{position:absolute;inset:0;background:var(--card);overflow-y:auto;padding:14px;text-align:center;z-index:500}
+#flag{font-size:96px;line-height:1.1}
+#opts{display:grid;gap:10px;margin-top:12px}
+.opt{min-height:60px;border-radius:18px;border:2px solid var(--line);background:var(--bg1);font-size:20px;font-weight:700;cursor:pointer;transition:all .2s;color:var(--text)}
+.opt.ok{background:var(--ok);color:#fff;border-color:transparent}
+.opt.bad{background:var(--bad);color:#fff;border-color:transparent}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;z-index:1200;background:var(--card);border-radius:20px;padding:12px;box-shadow:0 8px 30px rgba(0,0,0,.3);animation:fade .3s}
+.sheet .rt1{font-size:22px;font-weight:800}
+.sheet .rt2{color:var(--muted);margin:4px 0 10px;font-size:15px}
+.sheet .big{font-size:30px;font-weight:900;color:var(--accent)}
+.sheet .btn{min-height:54px}
+#tTop{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+#tLetter{width:78px;height:78px;border-radius:24px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--onacc);font-size:50px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);flex:none}
+#tInfo{flex:1}
+#tInfo .r{font-weight:700}
+#tInfo .sc{color:var(--muted);font-size:15px}
+.bar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin:4px 0 8px}
+.bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .25s linear}
+#tBanner{background:var(--warn);color:#2b1c00;border-radius:14px;padding:8px 12px;font-weight:700;text-align:center;margin-bottom:8px;animation:pulse .6s infinite alternate}
+#tCells{display:flex;flex-direction:column;gap:8px;flex:1;overflow-y:auto;padding-bottom:6px}
+.cell{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:16px;padding:6px 8px 6px 12px;box-shadow:var(--shadow)}
+.cell label{width:78px;font-weight:700;font-size:14px;color:var(--muted);flex:none}
+.cell input{flex:1;min-width:0;height:48px;border:2px solid var(--line);border-radius:12px;font-size:20px;padding:0 10px;background:var(--bg1);color:var(--text);outline:none;user-select:text;-webkit-user-select:text}
+.cell input:focus{border-color:var(--accent)}
+.cell input.wrong{border-color:var(--bad)}
+#tStop{margin-top:8px}
+#reel{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff}
+#reel.on{display:flex}
+#reelL{width:190px;height:190px;border-radius:44px;background:linear-gradient(135deg,var(--accent),var(--accent2));font-size:130px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 0 60px rgba(0,0,0,.5);color:var(--onacc)}
+#reel p{font-size:22px;font-weight:700;margin-top:18px}
+table.rt{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:16px}
+table.rt th{font-size:14px;color:var(--muted);text-align:left;padding:0 4px}
+table.rt td{padding:7px 8px;border-radius:12px;vertical-align:middle}
+table.rt td.cat{font-weight:700;font-size:13px;color:var(--muted);padding-left:2px;width:64px}
+table.rt td.w{position:relative;word-break:break-word}
+table.rt td i{display:block;font-style:normal;font-size:12px;font-weight:800;opacity:.75}
+td.u{background:var(--u)}td.s{background:var(--s)}td.x{background:var(--x);text-decoration:line-through}td.e{background:var(--e);color:var(--muted)}
+td.q::after{content:" ✱";color:var(--accent)}
+.tot{display:flex;justify-content:space-between;font-weight:800;padding:6px 4px}
+.revi{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:16px;padding:10px 12px;margin-bottom:8px;box-shadow:var(--shadow)}
+.revi div{flex:1}.revi small{display:block;color:var(--muted)}
+.revi button{min-width:130px;min-height:48px;border-radius:14px;border:0;font-weight:700;background:var(--ok);color:#fff;cursor:pointer}
+.revi button.no{background:var(--bad)}
+.trophy{font-size:84px;text-align:center;animation:pop .6s ease}
+@keyframes pop{from{transform:scale(.2) rotate(-20deg);opacity:0}to{transform:none;opacity:1}}
+.bigscore{font-size:58px;font-weight:900;text-align:center;color:var(--accent)}
+.rank{text-align:center;font-size:24px;font-weight:800;margin:6px 0 14px}
+.vs{display:flex;justify-content:center;gap:24px;text-align:center;font-size:15px;color:var(--muted);margin-bottom:6px}
+.vs b{display:block;font-size:34px;color:var(--text)}
+.hint{background:var(--card);border-left:6px solid var(--warn);border-radius:14px;padding:12px 14px;margin:10px 0}
+.dev{display:flex;align-items:center;gap:10px;width:100%;min-height:58px;border-radius:16px;border:2px solid var(--line);background:var(--card);padding:0 14px;font-size:18px;font-weight:600;margin-bottom:8px;cursor:pointer}
+.spin{width:54px;height:54px;border-radius:50%;border:6px solid var(--line);border-top-color:var(--accent);animation:rot 1s linear infinite;margin:20px auto}
+@keyframes rot{to{transform:rotate(360deg)}}
+#ov,#discon,#dlg,#themeModal{position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:20px}
+#ov.on,#discon.on,#dlg.on,#themeModal.on{display:flex}
+.modal{background:var(--card);border-radius:24px;padding:20px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.4);text-align:center;animation:pop .3s ease}
+.modal .btn{margin-top:10px}
+.sw5{display:grid;gap:10px;margin-top:12px}
+.th{display:flex;align-items:center;gap:12px;min-height:58px;border-radius:16px;border:3px solid transparent;font-size:19px;font-weight:700;padding:0 14px;cursor:pointer;color:#222;background:linear-gradient(135deg,var(--c1),var(--c2))}
+.th.on{border-color:var(--text)}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(20,20,20,.88);color:#fff;border-radius:16px;padding:10px 18px;z-index:4000;opacity:0;pointer-events:none;transition:opacity .3s;max-width:88%;text-align:center}
+#toast.on{opacity:1}
+ul.how{padding-left:20px;margin:6px 0}
+ul.how li{margin-bottom:6px}
+.recrow{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+.recrow b{color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="app">
+
+<section class="screen active" id="s-home">
+ <div class="top"><div class="logo">🌍</div><h1>ГеоБаттл</h1><button class="icon" id="hTheme" title="Темы">🎨</button><button class="icon" id="hSet" title="Настройки">⚙️</button></div>
+ <p class="sub">Найди на карте, заполни таблицу, победи соперника!</p>
+ <div class="stack">
+  <button class="btn big" data-go="map">🗺️ Карта</button>
+  <button class="btn big" data-go="table">📋 Таблица</button>
+  <button class="btn big" data-go="bt">📡 По Bluetooth</button>
+  <div class="grid3">
+   <button class="tile" data-go="records">🏆<span>Рекорды</span></button>
+   <button class="tile" data-go="themes">🎨<span>Темы</span></button>
+   <button class="tile" data-go="howto">❓<span>Как играть</span></button>
+  </div>
+ </div>
+</section>
+
+<section class="screen" id="s-setup">
+ <div class="top"><button class="icon" data-back>←</button><h2 id="suTitle">Настройки игры</h2></div>
+ <div id="suModeW"><h3>Режим</h3><div class="chips" id="suMode"></div></div>
+ <h3>Раундов</h3><div class="chips" id="suRounds"></div>
+ <div id="suTopicW"><h3>Тема вопросов</h3><div class="chips" id="suTopic"></div></div>
+ <div id="suTimeW"><h3>Время раунда</h3><div class="chips" id="suTime"></div></div>
+ <div id="suOppW"><h3>Соперник</h3><div class="chips" id="suOpp"></div></div>
+ <div style="flex:1"></div>
+ <button class="btn" id="suGo">▶ Играть</button>
+</section>
+
+<section class="screen" id="s-map">
+ <div class="gbar"><button class="icon" data-back>←</button><div class="qno" id="mqNo">1/5</div><div class="board" id="mBoard"></div><div class="timer" id="mTime">30</div></div>
+ <div class="qcard" id="mqText"></div>
+ <div id="mapBox">
+  <div id="map"></div>
+  <div id="quiz" class="hidden"><div id="flag"></div><div id="quizCap"></div><div id="opts"></div></div>
+  <div class="sheet hidden" id="mRes"></div>
+ </div>
+ <button class="btn" id="mOk" disabled>✔ Подтвердить</button>
+</section>
+
+<section class="screen" id="s-table">
+ <div id="tTop">
+  <button class="icon" data-back>←</button>
+  <div id="tLetter">А</div>
+  <div id="tInfo"><div class="r" id="tRound">Раунд 1/5</div><div class="sc" id="tScore"></div><div class="timer" id="tTime" style="display:inline-block;margin-top:4px">60</div></div>
+ </div>
+ <div class="bar"><i id="tBar"></i></div>
+ <div id="tBanner" class="hidden"></div>
+ <div id="tCells"></div>
+ <button class="btn red" id="tStop">✋ Стоп</button>
+</section>
+
+<section class="screen" id="s-review">
+ <div class="top"><h2>Проверка слов соперника</h2></div>
+ <p class="sub">Этих слов нет в словаре. Примите или отклоните каждое.</p>
+ <div id="revList"></div>
+ <div style="flex:1"></div>
+ <button class="btn" id="revDone">Готово</button>
+</section>
+
+<section class="screen" id="s-round">
+ <div class="top"><h2 id="rTitle">Итоги раунда</h2></div>
+ <div id="rBody"></div>
+ <div style="flex:1"></div>
+ <button class="btn" id="rNext">Дальше</button>
+</section>
+
+<section class="screen" id="s-final">
+ <div id="fBody"></div>
+ <div style="flex:1"></div>
+ <div class="stack"><button class="btn" id="fAgain">🔄 Ещё раз</button><button class="btn sec" id="fHome">🏠 В меню</button></div>
+</section>
+
+<section class="screen" id="s-bt">
+ <div class="top"><button class="icon" data-back>←</button><h2>📡 По Bluetooth</h2></div>
+ <p class="sub">Игра вдвоём на двух телефонах: Карта или Таблица.</p>
+ <div id="btHint" class="hint hidden"></div>
+ <div class="stack">
+  <button class="btn big" id="btHost">🎮 Создать игру</button>
+  <button class="btn big" id="btJoin">🔗 Подключиться</button>
+ </div>
+</section>
+
+<section class="screen" id="s-join">
+ <div class="top"><button class="icon" data-back>←</button><h2>Подключение</h2></div>
+ <p class="sub" id="joinStatus">Нажмите «Искать» и выберите телефон хоста.</p>
+ <div id="devList"></div>
+ <div style="flex:1"></div>
+ <button class="btn" id="btScan">🔍 Искать устройства</button>
+</section>
+
+<section class="screen" id="s-wait">
+ <div class="top"><button class="icon" data-back>←</button><h2>Ожидание</h2></div>
+ <div class="card" style="text-align:center;margin-top:20px"><div class="spin"></div><p id="waitTxt">Ждём соперника…</p></div>
+</section>
+
+<section class="screen" id="s-records">
+ <div class="top"><button class="icon" data-back>←</button><h2>🏆 Рекорды</h2></div>
+ <div class="card" id="recBody"></div>
+ <div style="flex:1"></div>
+ <button class="btn sec" id="recReset" style="margin-top:12px">Сбросить рекорды</button>
+</section>
+
+<section class="screen" id="s-howto">
+ <div class="top"><button class="icon" data-back>←</button><h2>❓ Как играть</h2></div>
+ <div class="card">
+  <h3 style="margin-top:0">Карта</h3>
+  <ul class="how"><li>Тапните по карте, где, по-вашему, находится место, и нажмите «Подтвердить».</li><li>До 50 км — 1000 очков, дальше очки плавно убывают, дальше 2000 км — 0.</li><li>Быстрый ответ — до +200. Серия точных ответов подряд: ×1.2, ×1.5, ×2.</li><li>Иногда — вопрос «Что это за страна?» с 4 вариантами.</li></ul>
+  <h3>Таблица</h3>
+  <ul class="how"><li>Выпадает буква. Впишите слова на неё в 6 столбцов: имя, город, область, река, столица, страна.</li><li>Уникальное слово — 10 очков, такое же, как у соперника — 5. Первому, кто заполнил всё, +20.</li><li>«Стоп» завершает раунд: сопернику остаётся 10 секунд.</li><li>Слова, которых нет в словаре, проверяет соперник.</li></ul>
+  <h3>По Bluetooth</h3>
+  <ul class="how"><li>Один игрок нажимает «Создать игру», второй — «Подключиться». Работает в Android-приложении.</li><li>Хост выбирает режим, число раундов и тему.</li></ul>
+  <h3>Рейтинг</h3>
+  <p style="margin:6px 0">🧭 Новичок → 🧳 Путешественник → 🌍 Географ → ⛵ Магеллан</p>
+ </div>
+</section>
+
+<section class="screen" id="s-settings">
+ <div class="top"><button class="icon" data-back>←</button><h2>⚙️ Настройки</h2></div>
+ <div class="card">
+  <div class="row"><span>🔊 Звуки</span><button class="sw" data-k="sound"></button></div>
+  <div class="row"><span>📳 Вибрация</span><button class="sw" data-k="vib"></button></div>
+  <div class="row"><span>🏷️ Подписи на карте<br><small style="color:var(--muted)">подсказка, упрощает игру</small></span><button class="sw" data-k="labels"></button></div>
+  <h3>Время раунда в «Таблице»</h3><div class="chips" id="stTime"></div>
+  <h3>Раундов по умолчанию</h3><div class="chips" id="stRounds"></div>
+  <button class="btn sec" id="stTheme">🎨 Сменить тему</button>
+ </div>
+</section>
+
+</div>
+
+<div id="reel"><div id="reelL">?</div><p>Выпадает буква…</p></div>
+<div id="ov"><div class="modal"><div class="spin"></div><p id="ovTxt">Ждём…</p></div></div>
+<div id="discon"><div class="modal"><div style="font-size:54px">📴</div><h2 style="margin:6px 0">Связь потеряна</h2><p id="disTxt">Соединение с соперником оборвалось.</p><button class="btn" id="disRe">🔄 Переподключиться</button><button class="btn sec" id="disExit">Выйти в меню</button></div></div>
+<div id="dlg"><div class="modal"><p id="dlgTxt" style="font-size:19px;font-weight:600"></p><button class="btn" id="dlgYes">Да</button><button class="btn sec" id="dlgNo">Отмена</button></div></div>
+<div id="themeModal"><div class="modal"><h2 style="margin:0">🎨 Темы</h2><div class="sw5" id="thList"></div><button class="btn sec" id="thClose">Закрыть</button></div></div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+/* ============ УТИЛИТЫ ============ */
+const $=(s,e=document)=>e.querySelector(s),$$=(s,e=document)=>[...e.querySelectorAll(s)];
+const rnd=n=>Math.floor(Math.random()*n),clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+const LS={get(k,d){try{const v=localStorage.getItem('gb_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('gb_'+k,JSON.stringify(v))}catch(e){}}};
+const S={theme:LS.get('theme','green'),sound:LS.get('sound',true),vib:LS.get('vib',true),labels:LS.get('labels',false),time:LS.get('time',60),rounds:LS.get('rounds',5),topic:LS.get('topic','all'),opp:LS.get('opp','cpu')};
+const saveS=()=>Object.keys(S).forEach(k=>LS.set(k,S[k]));
+let AC;
+function beep(f,d=.12,type='sine',v=.14,when=0){if(!S.sound)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;o.connect(g);g.connect(AC.destination);const t=AC.currentTime+when;g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.start(t);o.stop(t+d+.02)}catch(e){}}
+const SND={tap:()=>beep(520,.07,'triangle'),ok:()=>{beep(660,.12);beep(880,.18,'sine',.14,.12)},bad:()=>beep(180,.3,'sawtooth',.09),tick:()=>beep(900,.04,'square',.04),reel:()=>beep(300+rnd(400),.04,'square',.04),win:()=>[523,659,784,1047].forEach((f,i)=>beep(f,.22,'triangle',.14,i*.13))};
+const vib=p=>{if(S.vib&&navigator.vibrate)try{navigator.vibrate(p)}catch(e){}};
+let toastT;function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('on'),2600)}
+function ask(msg,yes,label='Да'){$('#dlgTxt').textContent=msg;$('#dlgYes').textContent=label;$('#dlg').classList.add('on');$('#dlgYes').onclick=()=>{$('#dlg').classList.remove('on');yes()};$('#dlgNo').onclick=()=>$('#dlg').classList.remove('on')}
+function waitOn(t){$('#ovTxt').textContent=t;$('#ov').classList.add('on')}function waitOff(){$('#ov').classList.remove('on')}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function chips(el,opts,val,cb){el.innerHTML='';opts.forEach(([v,l])=>{const b=document.createElement('button');b.className='chip'+(v==val?' on':'');b.textContent=l;b.onclick=()=>{SND.tap();$$('.chip',el).forEach(x=>x.classList.remove('on'));b.classList.add('on');cb(v)};el.appendChild(b)})}
+
+/* ============ ТЕМЫ ============ */
+const THEMES=[['green','Зелёная','#ffffff','#7fdc9f','#1faa59'],['dark','Тёмная','#1c3126','#0c1612','#35d27a'],['blue','Синяя','#ffffff','#8ec3ff','#2a7de1'],['sunset','Закат','#ffe9b8','#ff8f84','#e2455f'],['pink','Розовая','#ffffff','#ffa6d0','#e8489b']];
+function applyTheme(t){S.theme=t;document.documentElement.dataset.theme=t;const m=$('#metaTheme');const th=THEMES.find(x=>x[0]===t);if(m&&th)m.content=th[4];saveS()}
+function openThemes(){const l=$('#thList');l.innerHTML='';THEMES.forEach(([id,name,c1,c2])=>{const b=document.createElement('button');b.className='th'+(S.theme===id?' on':'');b.style.setProperty('--c1',c1);b.style.setProperty('--c2',c2);b.textContent=(S.theme===id?'✔ ':'')+name;b.onclick=()=>{SND.tap();applyTheme(id);openThemes()};l.appendChild(b)});$('#themeModal').classList.add('on')}
+
+/* ============ ДАННЫЕ: СЛОВАРИ ============ */
+const RAW={
+city:`Абакан,Абу-Даби,Адана,Аддис-Абеба,Азов,Актау,Алматы,Альметьевск,Амстердам,Ангарск,Анкара,Анапа,Архангельск,Афины,Ашхабад,Армавир,Ачинск,Алушта,Алупка,Арзамас,Астана,Афипский,
+Баку,Барнаул,Барселона,Белград,Белгород,Берлин,Бийск,Бирск,Благовещенск,Болонья,Бордо,Брест,Брянск,Бугульма,Будапешт,Буэнос-Айрес,Бухара,Бангкок,Бейрут,Бомбей,Бостон,Брюссель,Братск,Бузулук,Бердск,Балашиха,Балаково,Батайск,Березники,Бологое,Борисоглебск,
+Варна,Варшава,Ванкувер,Великий Новгород,Венеция,Вена,Верона,Видное,Витебск,Владивосток,Владикавказ,Владимир,Волгоград,Волжский,Вологда,Воронеж,Воркута,Выборг,Вязьма,Вильнюс,Вашингтон,Валенсия,Вышний Волочёк,Великие Луки,Воткинск,Волгодонск,Волхов,
+Гавана,Гаага,Гамбург,Гатчина,Гданьск,Генуя,Глазов,Гомель,Грозный,Гродно,Гюмри,Гурьевск,Гусь-Хрустальный,Гай,Гагарин,Геленджик,Гагра,Гуанчжоу,Гватемала,
+Дели,Дакар,Дамаск,Дортмунд,Дрезден,Дубай,Дублин,Дубна,Дмитров,Дзержинск,Домодедово,Дербент,Донецк,Днепр,Душанбе,Джидда,Дюссельдорф,Дудинка,
+Евпатория,Ейск,Екатеринбург,Елабуга,Елец,Ереван,Ессентуки,Енисейск,Егорьевск,Ельня,
+Жуковский,Железногорск,Женева,Житомир,Жлобин,Жигулёвск,Железноводск,Жиздра,
+Зарайск,Звенигород,Зеленоград,Зеленодольск,Златоуст,Зеленогорск,Зима,Загреб,Заречный,Зерноград,Зея,Зальцбург,Запорожье,
+Иваново,Ижевск,Иркутск,Иерусалим,Ишим,Ишимбай,Искитим,Инта,Ирбит,Ивантеевка,Игарка,Исламабад,
+Казань,Калининград,Калуга,Камышин,Каир,Канберра,Кандалакша,Кабул,Каракас,Кельн,Кемерово,Керчь,Киев,Кингисепп,Кириши,Киров,Кисловодск,Клин,Коломна,Колпино,Комсомольск-на-Амуре,Копенгаген,Королёв,Кострома,Краков,Краснодар,Красноярск,Курск,Курган,Кызыл,Ковров,Котлас,Кунгур,Кронштадт,Кишинёв,Куала-Лумпур,Киото,Кейптаун,Коломбо,Катманду,
+Лас-Вегас,Лиссабон,Лима,Липецк,Лондон,Лос-Анджелес,Лиепая,Лысьва,Лабытнанги,Ливерпуль,Лион,Лодзь,Любляна,Люберцы,Лыткарино,Ленск,Луганск,Луга,Лугано,Львов,Лейпциг,Ла-Пас,Луанда,
+Магадан,Магнитогорск,Мадрид,Майами,Майкоп,Махачкала,Миасс,Милан,Минск,Минеральные Воды,Москва,Мурманск,Муром,Мытищи,Мюнхен,Мумбаи,Манила,Монреаль,Монако,Марсель,Мехико,Мельбурн,Мостар,Могилёв,Мариуполь,Мончегорск,Минусинск,Мирный,Мценск,
+Набережные Челны,Нальчик,Находка,Нарьян-Мар,Невинномысск,Нефтекамск,Нижнекамск,Нижневартовск,Нижний Новгород,Нижний Тагил,Новокузнецк,Новомосковск,Новороссийск,Новосибирск,Новочебоксарск,Норильск,Ноябрьск,Нью-Йорк,Нант,Неаполь,Найроби,Ницца,Нюрнберг,Нукус,Нягань,Надым,Назрань,
+Обнинск,Одесса,Одинцово,Омск,Орёл,Оренбург,Орск,Осло,Оттава,Оксфорд,Омаха,Остин,Осака,Ош,Октябрьский,Озёрск,Орехово-Зуево,Остров,Охотск,
+Павлово,Павловский Посад,Париж,Пекин,Пенза,Пермь,Петрозаводск,Петропавловск-Камчатский,Печора,Пинск,Подольск,Прага,Псков,Пушкин,Пятигорск,Полоцк,Познань,Порту,Пусан,Пномпень,Панама,Пловдив,Плёс,Приозерск,Пушкино,Переславль-Залесский,
+Рига,Рим,Ростов-на-Дону,Ростов,Рязань,Рыбинск,Рубцовск,Ревда,Реутов,Ржев,Рославль,Ровно,Роттердам,Рейкьявик,Рио-де-Жанейро,Рошаль,Рузаевка,Ртищево,Рассказово,
+Самара,Санкт-Петербург,Саранск,Саратов,Севастополь,Северодвинск,Серпухов,Симферополь,Смоленск,Сочи,Ставрополь,Стерлитамак,Сургут,Сыктывкар,Сызрань,Салехард,Сеул,Сидней,Сингапур,София,Стамбул,Стокгольм,Сантьяго,Сан-Франциско,Сиэтл,Суздаль,Сергиев Посад,Сарапул,Саров,Сатка,Салават,Соликамск,Сухум,Сплит,Страсбург,Сараево,Сан-Паулу,
+Таганрог,Тамбов,Тверь,Тбилиси,Тегеран,Тель-Авив,Тирана,Токио,Тольятти,Томск,Тула,Тюмень,Туапсе,Тобольск,Тихвин,Торжок,Ташкент,Таллин,Тулуза,Турин,Торонто,Тунис,Триест,Тайшет,Троицк,Туймазы,Тулун,Тында,
+Уфа,Ульяновск,Улан-Удэ,Уссурийск,Ухта,Углич,Урюпинск,Ужгород,Улан-Батор,Утрехт,Усинск,Урай,Удомля,Усолье-Сибирское,Уральск,
+Феодосия,Фрязино,Флоренция,Франкфурт,Фукуока,Фергана,Фокино,Фатеж,Фрайбург,
+Хабаровск,Ханты-Мансийск,Харьков,Хельсинки,Ханой,Хива,Хайфа,Хасавюрт,Химки,Холмск,Хиросима,Хьюстон,Херсон,Хмельницкий,
+Цюрих,Цхинвал,Цивильск,Цхалтубо,Цетине,Цюйфу,
+Чебоксары,Челябинск,Череповец,Черкесск,Чита,Чехов,Чистополь,Чайковский,Чердынь,Чикаго,Чернигов,Чебаркуль,Чусовой,Чапаевск,
+Шахты,Шуя,Шелехов,Шанхай,Шарм-эш-Шейх,Шымкент,Шадринск,Шлиссельбург,Шатура,Шэньчжэнь,Шяуляй,
+Щёлково,Щекино,Щучин,Щёлкино,Щербинка,
+Электросталь,Элиста,Энгельс,Эдинбург,Эр-Рияд,Эссен,Эйлат,Эстерсунд,Эльбасан,
+Юрга,Юрьев-Польский,Южно-Сахалинск,Юрюзань,Юрмала,Югорск,Южа,Юрьевец,
+Ярославль,Якутск,Ялта,Ясный,Янаул,Ярцево,Ялуторовск,Ямбол,Яссы,Яранск`,
+region:`Амурская,Архангельская,Астраханская,Белгородская,Брянская,Владимирская,Волгоградская,Вологодская,Воронежская,Ивановская,Иркутская,Калининградская,Калужская,Кемеровская,Кировская,Костромская,Курганская,Курская,Ленинградская,Липецкая,Магаданская,Московская,Мурманская,Нижегородская,Новгородская,Новосибирская,Омская,Оренбургская,Орловская,Пензенская,Псковская,Ростовская,Рязанская,Самарская,Саратовская,Сахалинская,Свердловская,Смоленская,Тамбовская,Тверская,Томская,Тульская,Тюменская,Ульяновская,Челябинская,Ярославская,Еврейская,Алтайский,Забайкальский,Камчатский,Краснодарский,Красноярский,Пермский,Приморский,Ставропольский,Хабаровский,Адыгея,Башкортостан,Бурятия,Дагестан,Ингушетия,Кабардино-Балкария,Калмыкия,Карачаево-Черкесия,Карелия,Коми,Крым,Марий Эл,Мордовия,Якутия,Саха,Северная Осетия,Татарстан,Тыва,Удмуртия,Хакасия,Чечня,Чувашия,Алтай,Ямало-Ненецкий,Ханты-Мансийский,Ненецкий,Чукотский,Аляска,Техас,Калифорния,Флорида,Бавария,Тоскана,Ломбардия,Каталония,Андалусия,Прованс,Нормандия,Онтарио,Квебек,Тасмания,Сицилия,Сардиния,Бретань,Гессен,Саксония,Тироль,Гавайи,Невада,Юта,Огайо,Орегон,Вайоминг,Айова,Канзас,Миссури,Монтана,Аризона,Колорадо,Нью-Мексико,Индиана,Висконсин,Миннесота,Луизиана,Алабама,Джорджия,Виргиния,Пенсильвания,Мичиган,Эльзас,Лотарингия,Шампань,Бургундия,Тюрингия,Силезия,Богемия,Моравия,Галиция,Пенджаб,Керала,Гоа,Тибет,Синьцзян,Сычуань,Юньнань,Хоккайдо,Окинава,Патагония,Уэльс,Шотландия,Фландрия,Валлония,Эстремадура,Арагон,Галисия,Наварра,Умбрия,Пьемонт,Венето,Апулия,Калабрия,Лацио,Эмилия-Романья,Фриули,Бранденбург,Рейнланд,Вестфалия,Шлезвиг-Гольштейн,Хайнань,Гуандун,Фуцзянь,Чжэцзян,Ганьсу,Хэбэй,Шаньдун,Квинсленд,Виктория,Новый Южный Уэльс,Нунавут,Юкон,Альберта,Манитоба,Саскачеван,Британская Колумбия,Нью-Джерси,Нью-Гэмпшир,Теннесси,Щецинское,Цюрихский`,
+river:`Ангара,Амур,Ахтуба,Алдан,Аргунь,Абакан,Анадырь,Амазонка,Арагви,Аракс,Аму-Дарья,Алазея,Белая,Бия,Бирюса,Буг,Березина,Бзыбь,Волга,Ока,Дон,Днепр,Днестр,Двина,Енисей,Обь,Лена,Урал,Кама,Вятка,Вычегда,Волхов,Вилюй,Витим,Вага,Великая,Вуокса,Висла,Влтава,Везер,Гудзон,Ганг,Гвадалквивир,Гаронна,Дунай,Донец,Десна,Дордонь,Дуэро,Евфрат,Ебро,Иртыш,Ишим,Исеть,Индигирка,Инд,Иравади,Иордан,Ижма,Кубань,Колыма,Клязьма,Катунь,Кура,Конго,Колорадо,Колумбия,Лаба,Луга,Лимпопо,Луара,Лозьва,Миссисипи,Миссури,Меконг,Мезень,Москва,Мста,Мозель,Маас,Мараньон,Нева,Неман,Нил,Нарва,Нигер,Онега,Орь,Орхон,Оранжевая,Печора,Прут,По,Припять,Пинега,Пур,Пяндж,Рейн,Рона,Рио-Гранде,Рось,Самара,Сухона,Свирь,Сож,Сена,Сырдарья,Селенга,Сава,Сунгари,Тобол,Томь,Тура,Тибр,Темза,Тигр,Тверца,Терек,Тахо,Тиса,Уссури,Уда,Унжа,Упа,Уй,Фонтанка,Хопёр,Хуанхэ,Хатанга,Хантайка,Цна,Цзялин,Чусовая,Чулым,Чепца,Чу,Чарыш,Шексна,Шилка,Шелонь,Шарья,Щара,Щугор,Эльба,Эмба,Эмс,Юкон,Юза,Юг,Яна,Яик,Яуза,Ямуна,Янцзы,Ялуцзян`,
+capital:`Абу-Даби,Абуджа,Аккра,Аддис-Абеба,Алжир,Амман,Амстердам,Анкара,Антананариву,Апиа,Ашхабад,Асмэра,Астана,Асунсьон,Афины,Баку,Бамако,Бангкок,Банги,Банжул,Бандар-Сери-Бегаван,Басетер,Белград,Бельмопан,Берлин,Берн,Бишкек,Бисау,Богота,Браззавиль,Бразилиа,Братислава,Бриджтаун,Брюссель,Бухарест,Будапешт,Буэнос-Айрес,Бужумбура,Вадуц,Валлетта,Вашингтон,Вена,Вьентьян,Вильнюс,Виндхук,Гавана,Гаага,Гватемала,Дакар,Дамаск,Дакка,Додома,Доха,Дублин,Душанбе,Джакарта,Джибути,Джуба,Ереван,Загреб,Исламабад,Иерусалим,Каир,Кабул,Кампала,Канберра,Каракас,Кастри,Катманду,Киев,Кигали,Кингстаун,Кингстон,Киншаса,Кишинёв,Кито,Копенгаген,Конакри,Куала-Лумпур,Кувейт,Либревиль,Лима,Лилонгве,Лиссабон,Ломе,Лондон,Луанда,Лусака,Любляна,Люксембург,Мадрид,Мале,Манагуа,Манама,Манила,Мапуту,Масеру,Маскат,Мбабане,Мехико,Минск,Могадишо,Монако,Монровия,Монтевидео,Москва,Морони,Найроби,Нассау,Нджамена,Ниамей,Никосия,Нуакшот,Нукуалофа,Оттава,Уагадугу,Осло,Пекин,Панама,Паликир,Парамарибо,Париж,Прага,Прая,Претория,Пномпень,Порт-Луи,Порт-Морсби,Порт-о-Пренс,Порт-оф-Спейн,Порто-Ново,Пхеньян,Подгорица,Рабат,Рейкьявик,Рига,Рим,Сана,Сан-Хосе,Сан-Сальвадор,Сан-Марино,Сантьяго,Санто-Доминго,Сан-Томе,Сараево,Сеул,Скопье,София,Стокгольм,Сува,Сукре,Таллин,Ташкент,Тбилиси,Тегусигальпа,Тегеран,Тирана,Токио,Триполи,Тунис,Тхимпху,Улан-Батор,Фритаун,Фунафути,Хараре,Хартум,Хельсинки,Ханой,Цетине,Эр-Рияд,Тайбэй,Яунде,Ямусукро,Ярен,Багдад,Бейрут,Барнаул,Благовещенск,Владикавказ,Горно-Алтайск,Йошкар-Ола,Кызыл,Магас,Нальчик,Черкесск,Анадырь,Нарьян-Мар,Салехард,Ханты-Мансийск,Биробиджан,Абакан,Элиста,Саранск,Чебоксары,Ижевск,Уфа,Казань,Махачкала,Грозный,Сыктывкар,Петрозаводск,Симферополь,Якутск,Улан-Удэ,Майкоп,Псков,Чита,Хабаровск,Магадан,Южно-Сахалинск,Петропавловск-Камчатский,Тюмень,Шри-Джаяварденепура-Котте,Эль-Кувейт,Эль-Аюн,Шанхай,Фаяльба,Вест-Айленд,Хамильтон,Филиппсбург,Нуук,Папеэте,Нумеа,Ульяновск,Щучинск`,
+country:`Австралия,Австрия,Азербайджан,Албания,Алжир,Ангола,Андорра,Антигуа и Барбуда,Аргентина,Армения,Афганистан,Багамы,Бангладеш,Барбадос,Бахрейн,Беларусь,Белиз,Бельгия,Бенин,Болгария,Боливия,Босния и Герцеговина,Ботсвана,Бразилия,Бруней,Буркина-Фасо,Бурунди,Бутан,Вануату,Ватикан,Великобритания,Венгрия,Венесуэла,Вьетнам,Габон,Гаити,Гайана,Гамбия,Гана,Гватемала,Гвинея,Гвинея-Бисау,Германия,Гондурас,Гренада,Греция,Грузия,Дания,Джибути,Доминика,Доминикана,Египет,Замбия,Зимбабве,Израиль,Индия,Индонезия,Иордания,Ирак,Иран,Ирландия,Исландия,Испания,Италия,Йемен,Кабо-Верде,Казахстан,Камбоджа,Камерун,Канада,Катар,Кения,Кипр,Киргизия,Кирибати,Китай,Колумбия,Коморы,Конго,Коста-Рика,Куба,Кувейт,Лаос,Латвия,Лесото,Либерия,Ливан,Ливия,Литва,Лихтенштейн,Люксембург,Маврикий,Мавритания,Мадагаскар,Малави,Малайзия,Мали,Мальдивы,Мальта,Марокко,Маршалловы Острова,Мексика,Микронезия,Мозамбик,Молдова,Монако,Монголия,Мьянма,Намибия,Науру,Непал,Нигер,Нигерия,Нидерланды,Никарагуа,Новая Зеландия,Норвегия,ОАЭ,Оман,Пакистан,Палау,Палестина,Панама,Папуа — Новая Гвинея,Парагвай,Перу,Польша,Португалия,Россия,Руанда,Румыния,Сальвадор,Самоа,Сан-Марино,Сан-Томе и Принсипи,Саудовская Аравия,Северная Корея,Северная Македония,Сейшелы,Сенегал,Сент-Винсент и Гренадины,Сент-Китс и Невис,Сент-Люсия,Сербия,Сингапур,Сирия,Словакия,Словения,Соломоновы Острова,Сомали,Судан,Суринам,США,Сьерра-Леоне,Таджикистан,Таиланд,Танзания,Того,Тонга,Тринидад и Тобаго,Тувалу,Тунис,Туркменистан,Турция,Уганда,Узбекистан,Украина,Уругвай,Фиджи,Филиппины,Финляндия,Франция,Хорватия,ЦАР,Чад,Черногория,Чехия,Чили,Швейцария,Швеция,Шри-Ланка,Эквадор,Экваториальная Гвинея,Эритрея,Эсватини,Эстония,Эфиопия,ЮАР,Южная Корея,Южный Судан,Ямайка,Япония,Тайвань,Косово,Абхазия,Южная Осетия,Англия,Шотландия,Уэльс,Гонконг`,
+name:`Александр,Алексей,Андрей,Антон,Артём,Артур,Анатолий,Аркадий,Арсений,Альберт,Адам,Алан,Анна,Алиса,Анастасия,Алина,Александра,Агата,Алла,Алёна,Аврора,Ангелина,Арина,Аделина,Амир,Айрат,Алмаз,Арслан,Ахмед,Аскар,
+Борис,Богдан,Бронислав,Булат,Беатриса,Белла,Богдана,Берта,Бахтияр,
+Василий,Виктор,Виталий,Владимир,Владислав,Валентин,Валерий,Вадим,Вячеслав,Всеволод,Вера,Виктория,Валентина,Валерия,Варвара,Вероника,Василиса,Влада,Вика,Вениамин,
+Георгий,Геннадий,Глеб,Григорий,Гордей,Герман,Галина,Гульназ,Гузель,Гала,Гаянэ,Гарик,Гоша,Гавриил,
+Дмитрий,Денис,Даниил,Данила,Давид,Даниэль,Дарья,Диана,Дина,Дарина,Дамир,Демид,Динара,Доминика,
+Евгений,Егор,Ефим,Елисей,Емельян,Екатерина,Елена,Елизавета,Евгения,Ева,Есения,Евдокия,
+Жанна,Жорж,Жан,Жасмин,Жозефина,Жека,
+Захар,Зиновий,Зоя,Зинаида,Зарина,Злата,Зульфия,Зураб,Заур,
+Иван,Игорь,Илья,Ильдар,Игнат,Иннокентий,Иосиф,Ирина,Инна,Илона,Ия,Изабелла,Иветта,Ирма,
+Кирилл,Константин,Клим,Кузьма,Карим,Камил,Кристина,Ксения,Карина,Клавдия,Кира,Карл,Кристиан,
+Леонид,Лев,Лука,Леон,Ляйсан,Лариса,Любовь,Людмила,Лилия,Лидия,Лина,Лея,Лада,Ленар,
+Михаил,Максим,Матвей,Марк,Мирон,Мансур,Марат,Мария,Маргарита,Марина,Милана,Мирослава,Майя,Мила,Мадина,Магомед,Малика,
+Никита,Николай,Назар,Никодим,Наталья,Надежда,Нина,Настя,Нелли,Наиля,Наиль,Нурлан,Нонна,
+Олег,Остап,Оскар,Осип,Ольга,Оксана,Олеся,Октавия,Орест,
+Павел,Пётр,Платон,Прохор,Полина,Прасковья,Пелагея,Патрик,
+Роман,Руслан,Ринат,Рустам,Родион,Ростислав,Радик,Раиса,Регина,Рита,Роза,Римма,Рената,Рамиль,Рафаэль,
+Сергей,Степан,Святослав,Семён,Савелий,Станислав,Светлана,София,Софья,Снежана,Стелла,Сабина,Сара,Самир,Саид,
+Тимофей,Тимур,Тарас,Трофим,Тихон,Татьяна,Тамара,Тая,Таисия,Тереза,Тео,Тагир,
+Устин,Улугбек,Ульяна,Устинья,Умар,Урсула,Ульви,
+Фёдор,Филипп,Фаддей,Фарид,Феликс,Фаина,Фатима,Фёкла,Флора,Фируза,Файзулла,
+Хасан,Харитон,Хьюго,Хельга,Хадижа,Хаджи,
+Цезарь,Цветана,Цецилия,Цветан,
+Чеслав,Чингиз,Чарли,Чулпан,Чара,
+Шамиль,Шерлок,Шарль,Шарлотта,Шахруз,Шакира,Шура,Шейла,
+Щедрина,Щаранский,
+Эдуард,Эрик,Эмиль,Эльдар,Эльвира,Эмма,Эльмира,Эдита,Эльза,Эрнест,Эльнур,
+Юрий,Юлиан,Юлия,Юна,Юстина,Юсуф,Юнона,
+Ян,Яков,Ярослав,Яна,Ярослава,Яромир,Яким,Ясмина,Янис`};
+const CATS=[['name','Имя'],['city','Город'],['region','Область'],['river','Река'],['capital','Столица'],['country','Страна']];
+const STOPW=new Set('область обл край республика респ город г река р страна государство округ ао'.split(' '));
+function norm(s){return (s||'').toLowerCase().replace(/ё/g,'е').split(/[^a-zа-я0-9]+/).filter(t=>t&&!STOPW.has(t)).join(' ')}
+const DICT={};
+CATS.forEach(([k])=>{const words=[...new Set(RAW[k].split(',').map(s=>s.trim()).filter(Boolean))];const set=new Set(words.map(norm));const by={};words.forEach(w=>{const n=norm(w);if(!n)return;const L=n[0].toUpperCase();(by[L]=by[L]||[]).push(w)});DICT[k]={words,set,by}});
+const LETTERS='АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЭЮЯ'.split('');
+const RARE=new Set('ЦЩЭЮФХШЖ'.split(''));
+function pickLetter(used){const pool=LETTERS.filter(l=>!used.includes(l));const w=pool.map(l=>RARE.has(l)?.35:1);let r=Math.random()*w.reduce((a,b)=>a+b,0);for(let i=0;i<pool.length;i++){r-=w[i];if(r<=0)return pool[i]}return pool[0]}
+
+/* ============ ДАННЫЕ: МЕСТА ============ */
+const PLACES=[];
+const add=(t,d,arr)=>arr.forEach(a=>PLACES.push([a[0],t,a[1],a[2],a[3]||d]));
+add('столица',1,[['Москва',55.7558,37.6173],['Лондон',51.5074,-.1278],['Париж',48.8566,2.3522],['Берлин',52.52,13.405],['Рим',41.9028,12.4964],['Мадрид',40.4168,-3.7038],['Вашингтон',38.9072,-77.0369],['Пекин',39.9042,116.4074],['Токио',35.6762,139.6503],['Каир',30.0444,31.2357],['Оттава',45.4215,-75.6972],['Канберра',-35.2809,149.13,2],['Лиссабон',38.7223,-9.1393,2],['Вена',48.2082,16.3738,2],['Прага',50.0755,14.4378,2],['Варшава',52.2297,21.0122,2],['Стокгольм',59.3293,18.0686,2],['Осло',59.9139,10.7522,2],['Хельсинки',60.1699,24.9384,2],['Афины',37.9838,23.7275,2],['Минск',53.9006,27.559,2],['Киев',50.4501,30.5234,2],['Тбилиси',41.7151,44.8271,2],['Ереван',40.1792,44.4991,2],['Дели',28.6139,77.209,2],['Сеул',37.5665,126.978,2],['Бангкок',13.7563,100.5018,2],['Мехико',19.4326,-99.1332,2],['Гавана',23.1136,-82.3666,2],['Богота',4.711,-74.0721,3],['Лима',-12.0464,-77.0428,3],['Буэнос-Айрес',-34.6037,-58.3816,2],['Сантьяго',-33.4489,-70.6693,3],['Тегеран',35.6892,51.389,2],['Найроби',-1.2921,36.8219,3],['Улан-Батор',47.8864,106.9057,3],['Ханой',21.0278,105.8342,3],['Джакарта',-6.2088,106.8456,3],['Веллингтон',-41.2866,174.7756,3],['Дублин',53.3498,-6.2603,2],['Рейкьявик',64.1466,-21.9426,3],['Амстердам',52.3676,4.9041,2],['Ташкент',41.2995,69.2401,3]]);
+add('город',2,[['Санкт-Петербург',59.9343,30.3351,1],['Нью-Йорк',40.7128,-74.006,1],['Сидней',-33.8688,151.2093,1],['Стамбул',41.0082,28.9784,1],['Дубай',25.2048,55.2708,1],['Сингапур',1.3521,103.8198,2],['Рио-де-Жанейро',-22.9068,-43.1729,2],['Мумбаи',19.076,72.8777,2],['Кейптаун',-33.9249,18.4241,2],['Лагос',6.5244,3.3792,3],['Новосибирск',55.0084,82.9357,2],['Екатеринбург',56.8389,60.6057,2],['Казань',55.7887,49.1221,2],['Нижний Новгород',56.2965,43.9361,2],['Красноярск',56.0153,92.8932,2],['Самара',53.1959,50.1002,2],['Иркутск',52.2869,104.305,2],['Владивосток',43.1155,131.8855,2],['Калининград',54.7104,20.4522,2],['Мурманск',68.9585,33.0827,3],['Якутск',62.0355,129.6755,3],['Сочи',43.6028,39.7342,2],['Алматы',43.222,76.8512,3]]);
+add('достопримечательность',2,[['Эйфелева башня',48.8584,2.2945,1],['Колизей',41.8902,12.4922,1],['Биг-Бен',51.5007,-.1246,1],['Статуя Свободы',40.6892,-74.0445,1],['Великая Китайская стена (Бадалин)',40.3599,116.0204,2],['Тадж-Махал',27.1751,78.0421,1],['Пирамиды Гизы',29.9792,31.1342,1],['Сиднейская опера',-33.8568,151.2153,2],['Статуя Христа-Искупителя',-22.9519,-43.2105,2],['Мачу-Пикчу',-13.1631,-72.545,2],['Петергоф',59.88,29.905,2],['Ангкор-Ват',13.4125,103.867,3],['Петра',30.3285,35.4444,3],['Стоунхендж',51.1789,-1.8262,3],['Саграда Фамилия',41.4036,2.1744,2],['Бурдж-Халифа',25.1972,55.2744,2],['Эрмитаж',59.9398,30.3146,2],['Космодром Байконур',45.965,63.305,3],['Парфенон',37.9715,23.7267,2],['Мост Золотые Ворота',37.8199,-122.4783,2],['Пизанская башня',43.723,10.3966,2],['Остров Мон-Сен-Мишель',48.636,-1.5115,3]]);
+add('гора',2,[['Эльбрус',43.3499,42.4453,1],['Эверест',27.9881,86.925,1],['Монблан',45.8326,6.8652,2],['Килиманджаро',-3.0674,37.3556,2],['Аконкагуа',-32.6532,-70.0109,3],['Фудзияма',35.3606,138.7274,2],['Денали',63.0695,-151.0074,3],['Белуха',49.807,86.587,3],['Казбек',42.6969,44.5183,3],['Маттерхорн',45.9766,7.6586,3],['Арарат',39.7019,44.2983,2],['гора Народная',65.0333,60.1167,3],['Ключевская Сопка',56.0556,160.6378,3],['Этна',37.751,14.9934,2],['Везувий',40.8218,14.4263,2]]);
+add('река',3,[['Волга (у Саратова)',51.53,46.03,2],['Нил (у Луксора)',25.7,32.64,2],['Амазонка (у Манауса)',-3.13,-60,2],['Миссисипи (у Нового Орлеана)',29.95,-90.07,3],['Дунай (у Будапешта)',47.5,19.04,2],['Рейн (у Кёльна)',50.94,6.96,3],['Темза (у Лондона)',51.5085,-.0877,2],['Енисей (у Красноярска)',56.01,92.85,2],['Обь (у Новосибирска)',55.03,82.92,2],['Лена (у Якутска)',62.03,129.73,3],['Амур (у Хабаровска)',48.48,135.08,3],['Янцзы (у Ухани)',30.55,114.3,3],['Ганг (у Варанаси)',25.31,83.01,3],['Конго (у Киншасы)',-4.3,15.3,3],['Дон (у Ростова)',47.22,39.72,3]]);
+add('озеро',2,[['Байкал',53.5,108,1],['Ладожское озеро',60.8,31.5,2],['Онежское озеро',61.8,35.4,2],['озеро Виктория',-1,33,2],['озеро Верхнее',47.7,-87.5,3],['Женевское озеро',46.45,6.55,3],['озеро Титикака',-15.9,-69.4,3],['озеро Балхаш',46,74,3],['озеро Мичиган',43.8,-87,3],['озеро Танганьика',-6,29.5,3],['Мёртвое море',31.5,35.5,2],['Каспийское море',41.5,50.5,1],['Аральское море',45,60,3],['озеро Чад',13,14,3]]);
+add('остров',2,[['Мадагаскар',-18.9,47.5,1],['Исландия',64.96,-19.02,1],['Куба',21.5,-79.5,1],['Сахалин',50,142.8,2],['Гренландия',72,-40,1],['Тасмания',-42,146.6,2],['Крит',35.24,24.81,2],['Мальта',35.9,14.4,3],['Гавайи (Оаху)',21.47,-157.98,3],['Шри-Ланка',7.87,80.77,2],['Борнео',.96,114.55,2],['Сицилия',37.6,14,2],['Сардиния',40.1,9,3],['Кипр',35,33,2],['Ява',-7.5,110,2],['Новая Земля',74,56,3],['Камчатка',56,160,2],['Ямайка',18.1,-77.3,3],['Остров Пасхи',-27.11,-109.35,3],['Мальдивы',3.2,73.2,3],['Мальорка',39.6,2.9,3],['Корсика',42.1,9.1,3],['Хоккайдо',43.2,142.9,3]]);
+add('страна',2,[['Россия',61.5,105,1],['Китай',35,103,1],['Индия',21,78,1],['США',39.8,-98.6,1],['Бразилия',-10,-52,1],['Австралия',-25,134,1],['Канада',56,-106,1],['Египет',26.8,30.8,2],['Турция',39,35,2],['Франция',46.6,2.5,1],['Германия',51,10.4,1],['Италия',42.8,12.8,1],['Испания',40.2,-3.7,1],['Япония',36.2,138.3,1],['Монголия',46.9,103.8,2],['Казахстан',48,67,2],['Аргентина',-34,-64,2],['Мексика',23.6,-102.5,2],['ЮАР',-29,24,2],['Нигерия',9.1,8.7,3],['Индонезия',-2.5,118,2],['Норвегия',64.5,11,2],['Швеция',62,15,2],['Финляндия',64,26,2],['Польша',52,19.4,2],['Украина',49,32,2],['Иран',32.4,53.7,2],['Саудовская Аравия',24,45,2],['Перу',-9.2,-75,3],['Колумбия',4.6,-74,3],['Чили',-35.7,-71.5,3],['Новая Зеландия',-41,174,2],['Вьетнам',16,106,3],['Таиланд',15.9,101,3],['Марокко',31.8,-7,3],['Кения',0,38,3],['Эфиопия',9.1,40.5,3],['Алжир',28,2.6,3]]);
+add('природа',2,[['пустыня Сахара',23,13,1],['пустыня Гоби',42.8,105,2],['джунгли Амазонии',-3.5,-62.5,2],['Гранд-Каньон',36.1,-112.1,2],['Ниагарский водопад',43.08,-79.07,2],['водопад Виктория',-17.92,25.86,3],['Панамский канал',9.08,-79.68,2],['Суэцкий канал',30.46,32.35,2],['Берингов пролив',65.8,-168.9,3],['Гибралтарский пролив',36.14,-5.35,3],['пролив Босфор',41.12,29.05,3],['Магелланов пролив',-53.8,-70.9,3]]);
+const COUNTRIES=[['FR','Франция','Париж'],['DE','Германия','Берлин'],['IT','Италия','Рим'],['ES','Испания','Мадрид'],['PT','Португалия','Лиссабон'],['GB','Великобритания','Лондон'],['IE','Ирландия','Дублин'],['NL','Нидерланды','Амстердам'],['BE','Бельгия','Брюссель'],['CH','Швейцария','Берн'],['AT','Австрия','Вена'],['PL','Польша','Варшава'],['CZ','Чехия','Прага'],['SK','Словакия','Братислава'],['HU','Венгрия','Будапешт'],['RO','Румыния','Бухарест'],['BG','Болгария','София'],['GR','Греция','Афины'],['TR','Турция','Анкара'],['SE','Швеция','Стокгольм'],['NO','Норвегия','Осло'],['FI','Финляндия','Хельсинки'],['DK','Дания','Копенгаген'],['IS','Исландия','Рейкьявик'],['UA','Украина','Киев'],['BY','Беларусь','Минск'],['RU','Россия','Москва'],['KZ','Казахстан','Астана'],['GE','Грузия','Тбилиси'],['AM','Армения','Ереван'],['AZ','Азербайджан','Баку'],['UZ','Узбекистан','Ташкент'],['MN','Монголия','Улан-Батор'],['CN','Китай','Пекин'],['JP','Япония','Токио'],['KR','Южная Корея','Сеул'],['IN','Индия','Дели'],['TH','Таиланд','Бангкок'],['VN','Вьетнам','Ханой'],['ID','Индонезия','Джакарта'],['AU','Австралия','Канберра'],['NZ','Новая Зеландия','Веллингтон'],['EG','Египет','Каир'],['ZA','ЮАР','Претория'],['KE','Кения','Найроби'],['MA','Марокко','Рабат'],['NG','Нигерия','Абуджа'],['ET','Эфиопия','Аддис-Абеба'],['IR','Иран','Тегеран'],['SA','Саудовская Аравия','Эр-Рияд'],['IL','Израиль','Иерусалим'],['US','США','Вашингтон'],['CA','Канада','Оттава'],['MX','Мексика','Мехико'],['CU','Куба','Гавана'],['BR','Бразилия','Бразилиа'],['AR','Аргентина','Буэнос-Айрес'],['CL','Чили','Сантьяго'],['PE','Перу','Лима'],['CO','Колумбия','Богота']];
+const flagOf=iso=>String.fromCodePoint(...[...iso].map(c=>127397+c.charCodeAt(0)));
+
+/* ============ РЕЙТИНГ / РЕКОРДЫ ============ */
+const RANKS=[['🧭','Новичок'],['🧳','Путешественник'],['🌍','Географ'],['⛵','Магеллан']];
+function rankIdx(kind,avg){const t=kind==='map'?[0,300,550,800]:[0,20,35,50];let r=0;t.forEach((x,i)=>{if(avg>=x)r=i});return r}
+const defRec={map:0,table:0,games:0,streak:0,w:0,l:0,d:0,rk:0};
+function saveRec(kind,score,avg,streak){const r=Object.assign({},defRec,LS.get('rec',{}));r.games++;if(score>r[kind])r[kind]=score;r.streak=Math.max(r.streak,streak||0);r.rk=Math.max(r.rk,rankIdx(kind,avg));LS.set('rec',r)}
+function renderRecords(){const r=Object.assign({},defRec,LS.get('rec',{}));const rk=RANKS[r.rk];$('#recBody').innerHTML=`<div class="recrow"><span>Звание</span><b>${rk[0]} ${rk[1]}</b></div><div class="recrow"><span>🗺️ Лучший счёт в «Карте»</span><b>${r.map}</b></div><div class="recrow"><span>📋 Лучший счёт в «Таблице»</span><b>${r.table}</b></div><div class="recrow"><span>🔥 Лучшая серия точных</span><b>${r.streak}</b></div><div class="recrow"><span>🎮 Сыграно игр</span><b>${r.games}</b></div><div class="recrow"><span>📡 По Bluetooth (поб. / пор. / ничьи)</span><b>${r.w} / ${r.l} / ${r.d}</b></div>`}
+
+/* ============ ЭКРАНЫ ============ */
+let curScreen='s-home';
+function show(id){$$('.screen').forEach(s=>s.classList.toggle('active',s.id===id));curScreen=id;if(id==='s-records')renderRecords();if(id==='s-settings')renderSettings();const sc=$('#'+id);if(sc)sc.scrollTop=0}
+function goBack(){
+ if(['s-map','s-table','s-round','s-review'].includes(curScreen)){ask('Выйти из игры? Прогресс будет потерян.',quitGame,'Выйти');return}
+ if(curScreen==='s-home')return;
+ if(curScreen==='s-wait'){cancelWait();return}
+ if(curScreen==='s-join'){show('s-bt');return}
+ if(curScreen==='s-setup'&&SU.bt){show('s-bt');return}
+ show('s-home')}
+function quitGame(){stopTimer();clearTimeout(CPUT);waitOff();$('#reel').classList.remove('on');if(G&&G.bt){B.send({t:'bye'});B.close()}G=null;B.role=null;B.active=false;show('s-home')}
+function cancelWait(){B.send({t:'bye'});B.close();B.role=null;B.active=false;show('s-bt')}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-back]');if(b){SND.tap();goBack();return}const g=e.target.closest('[data-go]');if(g){SND.tap();vib(10);nav(g.dataset.go)}});
+function nav(w){
+ if(w==='map'||w==='table'){SU={kind:w,bt:false,rounds:S.rounds,topic:S.topic,time:S.time,opp:S.opp};openSetup()}
+ else if(w==='bt'){openBT()}
+ else if(w==='records')show('s-records');
+ else if(w==='themes')openThemes();
+ else if(w==='howto')show('s-howto')}
+history.pushState(null,'');window.addEventListener('popstate',()=>{history.pushState(null,'');if($('#dlg').classList.contains('on')){$('#dlg').classList.remove('on');return}goBack()});
+
+/* ============ НАСТРОЙКА ИГРЫ ============ */
+let SU={kind:'map',bt:false,rounds:5,topic:'all',time:60,opp:'cpu'};
+const TOPICS=[['all','Всё'],['city','Города'],['sight','Места'],['nature','Природа'],['country','Страны']];
+function openSetup(){
+ $('#suTitle').textContent=SU.bt?'Новая игра по Bluetooth':(SU.kind==='map'?'🗺️ Карта':'📋 Таблица');
+ $('#suModeW').classList.toggle('hidden',!SU.bt);
+ chips($('#suMode'),[['map','🗺️ Карта'],['table','📋 Таблица']],SU.kind,v=>{SU.kind=v;renderSetupVis()});
+ chips($('#suRounds'),[[5,'5'],[7,'7'],[10,'10']],SU.rounds,v=>SU.rounds=+v);
+ chips($('#suTopic'),TOPICS,SU.topic,v=>SU.topic=v);
+ chips($('#suTime'),[[30,'30 с'],[60,'60 с'],[90,'90 с']],SU.time,v=>SU.time=+v);
+ chips($('#suOpp'),[['cpu','🤖 Компьютер'],['timer','⏱️ Только таймер']],SU.opp,v=>SU.opp=v);
+ $('#suGo').textContent=SU.bt?'📡 Создать игру':'▶ Играть';
+ renderSetupVis();show('s-setup')}
+function renderSetupVis(){$('#suTopicW').classList.toggle('hidden',SU.kind!=='map');$('#suTimeW').classList.toggle('hidden',SU.kind!=='table');$('#suOppW').classList.toggle('hidden',SU.kind!=='table'||SU.bt)}
+$('#suGo').onclick=()=>{SND.tap();S.rounds=SU.rounds;S.topic=SU.topic;S.time=SU.time;S.opp=SU.opp;saveS();if(SU.bt)hostWait();else launchSolo()};
+function launchSolo(){if(SU.kind==='map')startMap({qs:makeQs(SU.rounds,SU.topic)});else startTable({rounds:SU.rounds,time:SU.time,vsCpu:SU.opp==='cpu'})}
+
+/* ============ ТАЙМЕР ============ */
+const TM={id:0,end:0,total:1,tick:null,done:null};
+function startTimer(sec,tick,done){stopTimer();TM.total=sec*1000;TM.end=Date.now()+TM.total;TM.tick=tick;TM.done=done;let last=-1;const f=()=>{const left=Math.max(0,TM.end-Date.now());const s=Math.ceil(left/1000);if(s!==last){last=s;TM.tick&&TM.tick(s,left)}else TM.tick&&TM.tick(s,left,true);if(left<=0){const d=TM.done;stopTimer();d&&d()}};TM.id=setInterval(f,150);f()}
+function stopTimer(){clearInterval(TM.id);TM.id=0}
+
+/* ============ РЕЖИМ КАРТА ============ */
+let G=null,MAP=null,TILE=null,GM=null,LAYERS=[];
+const TMAP={all:()=>true,city:t=>t==='город'||t==='столица',sight:t=>t==='достопримечательность',nature:t=>['гора','река','озеро','остров','природа'].includes(t),country:t=>t==='страна'};
+function makeQs(n,topic){
+ const idx=shuffle(PLACES.map((p,i)=>i).filter(i=>TMAP[topic](PLACES[i][1])));
+ const quiz=topic==='all'||topic==='country';
+ const slots=[];for(let k=0;k<n;k++)slots.push(quiz&&(k%4===3||(topic==='country'&&k%2===1))?'c':'p');
+ const np=slots.filter(x=>x==='p').length;
+ const pl=[];for(let i=0;i<np;i++)pl.push(idx[i%idx.length]);
+ pl.sort((a,b)=>(PLACES[a][4]+Math.random()*1.4)-(PLACES[b][4]+Math.random()*1.4));
+ const cidx=shuffle(COUNTRIES.map((c,i)=>i));let ci=0,pi=0;
+ return slots.map(s=>{if(s==='p')return{k:'p',i:pl[pi++]};const ans=cidx[ci++%cidx.length];const others=shuffle(COUNTRIES.map((c,i)=>i).filter(i=>i!==ans)).slice(0,3);return{k:'c',i:ans,o:shuffle([ans,...others])}})}
+function hav(a,b,c,d){const R=6371,r=x=>x*Math.PI/180;const h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;return 2*R*Math.asin(Math.min(1,Math.sqrt(h)))}
+function baseScore(d){if(d<=50)return 1000;if(d>=2000)return 0;const t=(d-50)/1950;return Math.round(1000*(1-t)*(1-t))}
+const mulOf=s=>s>=5?2:s>=3?1.5:s>=2?1.2:1;
+function award(base,el,acc){
+ const bonus=base>0?Math.round(200*clamp((25-el)/20,0,1)):0;
+ G.streak=acc?G.streak+1:0;G.bestStreak=Math.max(G.bestStreak||0,G.streak);
+ const mult=mulOf(G.streak);const pts=Math.round((base+bonus)*mult);G.total+=pts;return{base,bonus,mult,pts}}
+function startMap(c){
+ G={mode:'map',qs:c.qs,i:0,total:0,streak:0,bestStreak:0,bt:!!c.bt,opp:{total:0,idx:0,done:false}};
+ show('s-map');if(!ensureMap()&&false)return;setTimeout(()=>MAP&&MAP.invalidateSize(),80);nextMapQ()}
+function ensureMap(){
+ if(MAP)return true;
+ if(typeof L==='undefined'){$('#map').innerHTML='<div class="nomap">📡<br>Для карты нужен интернет.<br>Карта не загрузилась.</div>';return false}
+ MAP=L.map('map',{zoomControl:false,minZoom:2,maxZoom:12,worldCopyJump:true}).setView([28,12],2);
+ setTiles();
+ MAP.on('click',e=>{if(!G||G.mode!=='map'||G.answered||!G.q||G.q.k!=='p')return;setGuess(e.latlng.wrap())});
+ return true}
+function setTiles(){
+ if(!MAP)return;if(TILE)MAP.removeLayer(TILE);
+ TILE=S.labels?L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:12,attribution:'© OpenStreetMap'}):L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:12,attribution:'© OpenStreetMap, © CARTO'});
+ TILE.addTo(MAP)}
+const pinIcon=e=>L.divIcon({html:`<div class="pin">${e}</div>`,className:'',iconSize:[34,34],iconAnchor:[17,30]});
+function clearLayers(){if(!MAP)return;LAYERS.forEach(l=>MAP.removeLayer(l));LAYERS=[];GM=null}
+function setGuess(ll){if(GM)MAP.removeLayer(GM);GM=L.marker(ll,{icon:pinIcon('📍')}).addTo(MAP);G.guess={lat:ll.lat,lng:ll.lng};$('#mOk').disabled=false;SND.tap();vib(15)}
+function updBoard(){
+ if(!G)return;
+ if(G.mode==='map')$('#mBoard').innerHTML=G.bt?`Я <b>${G.total}</b> · Соперник <b>${G.opp.total}</b>`:`Очки <b>${G.total}</b>`+(G.streak>=2?` 🔥×${mulOf(G.streak)}`:'');
+ else $('#tScore').innerHTML=(G.bt||G.vsCpu)?`Я <b>${G.tot.me}</b> · Соп. <b>${G.tot.opp}</b>`:`Очки <b>${G.tot.me}</b>`}
+function nextMapQ(){
+ if(G.i>=G.qs.length)return endMap();
+ const q=G.qs[G.i];G.q=q;G.t0=Date.now();G.answered=false;G.guess=null;
+ $('#mqNo').textContent=`${G.i+1}/${G.qs.length}`;$('#mRes').classList.add('hidden');updBoard();
+ if(q.k==='p'){
+  const p=PLACES[q.i];$('#mqText').innerHTML=`Найди на карте:<b>${esc(p[0])}</b><span class="tag">${p[1]}</span>`;
+  $('#quiz').classList.add('hidden');$('#mOk').classList.remove('hidden');$('#mOk').disabled=true;
+  if(MAP){clearLayers();MAP.invalidateSize();MAP.setView([28,12],2,{animate:false})}
+ }else{
+  const c=COUNTRIES[q.i];$('#mqText').innerHTML=`Что это за страна?`;
+  $('#quiz').classList.remove('hidden');$('#mOk').classList.add('hidden');
+  $('#flag').textContent=flagOf(c[0]);$('#quizCap').innerHTML=`Столица: <b>${esc(c[2])}</b>`;
+  const o=$('#opts');o.innerHTML='';q.o.forEach(i=>{const b=document.createElement('button');b.className='opt';b.textContent=COUNTRIES[i][1];b.dataset.i=i;b.onclick=()=>answerQuiz(i);o.appendChild(b)})}
+ startTimer(30,(s,left,rep)=>{const t=$('#mTime');t.textContent=s;t.classList.toggle('low',s<=5);if(s<=5&&s>0&&!rep)SND.tick()},()=>{if(G.q.k==='p')confirmMap(true);else answerQuiz(-1)})}
+$('#mOk').onclick=()=>confirmMap(false);
+function confirmMap(auto){
+ if(!G||G.answered||G.q.k!=='p')return;
+ if(!G.guess&&!auto)return;
+ G.answered=true;stopTimer();
+ const p=PLACES[G.q.i],el=(Date.now()-G.t0)/1000;let d=null,base=0;
+ if(G.guess){d=hav(G.guess.lat,G.guess.lng,p[2],p[3]);base=baseScore(d)}
+ const r=award(base,el,base>=700);
+ if(MAP){const t=L.marker([p[2],p[3]],{icon:pinIcon('🎯')}).addTo(MAP);LAYERS.push(t);if(GM)LAYERS.push(GM);
+  if(G.guess){const ln=L.polyline([[G.guess.lat,G.guess.lng],[p[2],p[3]]],{color:'#e0443e',weight:3,dashArray:'8 8'}).addTo(MAP);LAYERS.push(ln);MAP.fitBounds(L.latLngBounds([[G.guess.lat,G.guess.lng],[p[2],p[3]]]),{padding:[50,50],maxZoom:6})}else MAP.setView([p[2],p[3]],4)}
+ base>=700?SND.ok():SND.bad();vib(base>=700?[30,40,30]:80);
+ const dist=d===null?'Вы не успели поставить метку':`Расстояние: <b>${Math.round(d).toLocaleString('ru')} км</b>`;
+ showSheet(`<div class="rt1">${esc(p[0])}</div><div class="rt2">${dist}</div><div class="rt2">Базовые ${r.base}${r.bonus?` · скорость +${r.bonus}`:''}${r.mult>1?` · серия ×${r.mult}`:''}</div><div class="big">+${r.pts}</div>`)}
+function answerQuiz(opt){
+ if(!G||G.answered||G.q.k!=='c')return;G.answered=true;stopTimer();
+ const el=(Date.now()-G.t0)/1000,ok=opt===G.q.i;const r=award(ok?600:0,el,ok);
+ $$('#opts .opt').forEach(b=>{if(+b.dataset.i===G.q.i)b.classList.add('ok');else if(+b.dataset.i===opt)b.classList.add('bad')});
+ ok?SND.ok():SND.bad();vib(ok?[30,40,30]:80);
+ showSheet(`<div class="rt1">${ok?'Верно!':'Неверно'}</div><div class="rt2">Это — ${esc(COUNTRIES[G.q.i][1])}${r.bonus?` · скорость +${r.bonus}`:''}${r.mult>1?` · серия ×${r.mult}`:''}</div><div class="big">+${r.pts}</div>`)}
+function showSheet(html){
+ updBoard();if(G.bt)B.keep({t:'score',i:G.i,total:G.total});
+ const s=$('#mRes');s.innerHTML=html+`<button class="btn" id="mNext">${G.i+1>=G.qs.length?'🏁 Итоги':'Дальше ▶'}</button>`;s.classList.remove('hidden');$('#mOk').classList.add('hidden');
+ $('#mNext').onclick=()=>{SND.tap();G.i++;nextMapQ()}}
+function endMap(){stopTimer();if(G.bt)B.keep({t:'done',total:G.total});G.finalShown=true;renderFinal();show('s-final')}
+
+/* ============ РЕЖИМ ТАБЛИЦА ============ */
+let CPUT=0;
+function startTable(c){
+ G={mode:'table',rounds:c.rounds,time:c.time,bt:!!c.bt,host:!!c.host,vsCpu:!!c.vsCpu,r:0,tot:{me:0,opp:0},used:[],bestStreak:0,hist:[]};
+ if(!G.bt||G.host)nextRound();else waitOn('Ждём букву от хоста…')}
+function nextRound(){const l=pickLetter(G.used);beginRound(l);if(G.bt)B.keep({t:'letter',r:G.r,l})}
+function makeCpu(L,time){
+ const cells=CATS.map(([k])=>{const a=DICT[k].by[L];return a&&a.length&&Math.random()<.7?a[rnd(a.length)]:''});
+ const full=cells.every(Boolean);return{cells,fullAt:full?Math.round(time*1000*(.5+Math.random()*.4)):null}}
+function beginRound(L){
+ waitOff();G.r++;G.used.push(L);G.letter=L;G.me={cells:Array(6).fill(''),fullAt:null};G.oppAns=G.vsCpu||G.bt?null:{cells:Array(6).fill(''),fullAt:null};
+ G.oppRev=null;G.myAcc=null;G.myRevDone=false;G.ended=false;G.stopped=false;G.oppStopped=false;G.reviewStarted=false;G.resShown=false;G.oppShown=G.oppShown||0;
+ B.outbox={};clearTimeout(CPUT);
+ if(G.vsCpu){const c=makeCpu(L,G.time);G.oppAns=c}
+ else if(!G.bt)G.oppAns={cells:Array(6).fill(''),fullAt:null};
+ $('#tLetter').textContent=L;$('#tRound').textContent=`Раунд ${G.r}/${G.rounds}`;$('#tBanner').classList.add('hidden');$('#tBar').style.width='100%';$('#tTime').textContent=G.time;$('#tTime').classList.remove('low');
+ const box=$('#tCells');box.innerHTML='';
+ CATS.forEach(([k,name],c)=>{const d=document.createElement('div');d.className='cell';d.innerHTML=`<label>${name}</label><input type="text" data-c="${c}" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="${L}…" disabled>`;box.appendChild(d)});
+ $$('#tCells input').forEach((inp,i,arr)=>{
+  inp.addEventListener('input',()=>{const v=inp.value.trim();const n=norm(v);inp.classList.toggle('wrong',!!n&&n[0]!==L.toLowerCase());checkFull()});
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();(arr[i+1]||inp).focus();if(!arr[i+1])inp.blur()}})});
+ $('#tStop').disabled=true;updBoard();show('s-table');
+ reel(L,()=>{
+  $$('#tCells input').forEach(x=>x.disabled=false);$('#tStop').disabled=false;const f=$('#tCells input');f&&f.focus();
+  G.t0=Date.now();
+  startTimer(G.time,(s,left,rep)=>{$('#tTime').textContent=s;$('#tTime').classList.toggle('low',s<=5);$('#tBar').style.width=Math.min(100,left/TM.total*100)+'%';if(s<=5&&s>0&&!rep)SND.tick()},()=>endRound());
+  if(G.vsCpu&&G.oppAns.fullAt!==null){CPUT=setTimeout(oppStopNotice,G.oppAns.fullAt)}})}
+function checkFull(){
+ const L=G.letter.toLowerCase();const vals=$$('#tCells input').map(i=>i.value.trim());
+ const full=vals.every(v=>{const n=norm(v);return n&&n[0]===L});
+ if(full){if(G.me.fullAt===null){G.me.fullAt=Date.now()-G.t0;SND.ok();vib(30)}}else G.me.fullAt=null}
+function reel(letter,cb){
+ const o=$('#reel'),box=$('#reelL');o.classList.add('on');let n=0;const total=22;
+ const step=()=>{if(n>=total){box.textContent=letter;SND.ok();vib(60);setTimeout(()=>{o.classList.remove('on');cb()},750);return}box.textContent=LETTERS[rnd(LETTERS.length)];SND.reel();n++;setTimeout(step,45+n*9)};step()}
+function oppStopNotice(){
+ if(!G||G.ended||G.oppStopped)return;G.oppStopped=true;TM.end=Math.min(TM.end,Date.now()+10000);
+ const b=$('#tBanner');b.textContent='✋ Соперник нажал «Стоп»! Осталось 10 секунд';b.classList.remove('hidden');SND.bad();vib([80,60,80])}
+$('#tStop').onclick=()=>{if(!G||G.ended)return;SND.tap();G.stopped=true;if(G.bt)B.send({t:'stop',r:G.r});endRound()};
+function endRound(){
+ if(!G||G.ended)return;G.ended=true;stopTimer();clearTimeout(CPUT);
+ G.me.cells=$$('#tCells input').map(i=>i.value.trim());$$('#tCells input').forEach(i=>{i.blur();i.disabled=true});
+ if(!G.bt){proceedReview();return}
+ B.keep({t:'ans',r:G.r,cells:G.me.cells,fullAt:G.me.fullAt});
+ if(G.oppAns)proceedReview();else waitOn('Ждём ответы соперника…')}
+function startsOk(w,L){const n=norm(w);return n&&n[0]===L.toLowerCase()}
+function proceedReview(){
+ if(G.reviewStarted)return;G.reviewStarted=true;
+ const L=G.letter,list=[];
+ if(!G.bt){
+  G.oppRev={};G.me.cells.forEach((w,c)=>{const n=norm(w),k=CATS[c][0];if(startsOk(w,L)&&!DICT[k].set.has(n))G.oppRev[c]=n.length>=3});
+  G.myAcc={};G.myRevDone=true;return tryFinishRound()}
+ G.oppAns.cells.forEach((w,c)=>{const k=CATS[c][0];if(startsOk(w,L)&&!DICT[k].set.has(norm(w)))list.push({c,name:CATS[c][1],w})});
+ if(!list.length){G.myAcc={};G.myRevDone=true;B.keep({t:'rev',r:G.r,ok:{}});waitOn('Ждём проверку слов соперником…');return tryFinishRound()}
+ waitOff();openReview(list)}
+function openReview(list){
+ const box=$('#revList');box.innerHTML='';const st={};
+ list.forEach(it=>{st[it.c]=true;const d=document.createElement('div');d.className='revi';d.innerHTML=`<div>${esc(it.w)}<small>${it.name}</small></div><button>✅ Принять</button>`;const b=$('button',d);b.onclick=()=>{st[it.c]=!st[it.c];b.className=st[it.c]?'':'no';b.textContent=st[it.c]?'✅ Принять':'❌ Отклонить';SND.tap()};box.appendChild(d)});
+ $('#revDone').onclick=()=>{SND.tap();G.myAcc=st;G.myRevDone=true;B.keep({t:'rev',r:G.r,ok:st});waitOn('Ждём проверку слов соперником…');tryFinishRound()};
+ show('s-review')}
+function tryFinishRound(){if(G.myRevDone&&G.oppRev&&G.oppAns&&!G.resShown){G.resShown=true;showRoundResult()}}
+function evalRound(){
+ const L=G.letter.toLowerCase();const me=G.me.cells,op=G.oppAns.cells;const rows=[];let pm=0,po=0;
+ CATS.forEach(([k,name],c)=>{
+  const a=me[c]||'',b=op[c]||'',na=norm(a),nb=norm(b);
+  const va=na&&na[0]===L?(DICT[k].set.has(na)?1:(G.oppRev&&G.oppRev[c]?2:0)):0;
+  const vb=nb&&nb[0]===L?(DICT[k].set.has(nb)?1:(G.myAcc&&G.myAcc[c]?2:0)):0;
+  const same=va&&vb&&na===nb;
+  const pa=va?(same?5:10):0,pb=vb?(same?5:10):0;pm+=pa;po+=pb;
+  rows.push({name,a,b,va,vb,pa,pb,same})});
+ let bm=0,bo=0;const f1=G.me.fullAt,f2=G.oppAns.fullAt;
+ if(f1!==null&&f1!==undefined&&(f2===null||f2===undefined||f1<f2))bm=20;else if(f2!==null&&f2!==undefined&&(f1===null||f1===undefined||f2<f1))bo=20;
+ return{rows,pm,po,bm,bo}}
+function cls(v,w,same,p){return !w?'e':(!v?'x':(same?'s':'u'))}
+function showRoundResult(){
+ waitOff();const R=evalRound();const hasOpp=G.bt||G.vsCpu;
+ G.tot.me+=R.pm+R.bm;G.tot.opp+=R.po+R.bo;
+ let h=`<div class="card"><div class="tot"><span>Буква <b style="color:var(--accent);font-size:22px">${G.letter}</b></span><span>Раунд ${G.r}/${G.rounds}</span></div><table class="rt"><tr><th></th><th>Я</th><th>${G.bt?'Соперник':G.vsCpu?'Компьютер':''}</th></tr>`;
+ R.rows.forEach(r=>{
+  const ca=cls(r.va,r.a,r.same),cb=cls(r.vb,r.b,r.same);
+  h+=`<tr><td class="cat">${r.name}</td><td class="w ${ca}${r.va===2?' q':''}">${esc(r.a)||'—'}<i>${r.pa?'+'+r.pa:'0'}</i></td>`+(hasOpp?`<td class="w ${cb}${r.vb===2?' q':''}">${esc(r.b)||'—'}<i>${r.pb?'+'+r.pb:'0'}</i></td>`:'<td></td>')+'</tr>'});
+ h+=`</table>`;
+ h+=`<div class="tot"><span>⚡ Бонус «первым заполнил всё»</span><span>${R.bm?'+20 мне':R.bo?'+20 сопернику':'—'}</span></div>`;
+ h+=`<div class="tot"><span>За раунд</span><span>${R.pm+R.bm}${hasOpp?' : '+(R.po+R.bo):''}</span></div>`;
+ h+=`<div class="tot" style="font-size:20px"><span>Всего</span><span>${G.tot.me}${hasOpp?' : '+G.tot.opp:''}</span></div></div>`;
+ h+=`<p class="sub" style="margin-top:8px">🟩 уникальное · 🟨 как у соперника · 🟥 неверное · ✱ принято проверкой</p>`;
+ $('#rBody').innerHTML=h;$('#rTitle').textContent=`Итоги раунда ${G.r}`;
+ show('s-round');SND.win();vib(40);updBoard();
+ if(G.bt)B.keep({t:'shown',r:G.r});updNext()}
+function updNext(){
+ if(!G||G.mode!=='table'||curScreen!=='s-round')return;
+ const b=$('#rNext');const last=G.r>=G.rounds;
+ if(last){b.textContent='🏁 Итоги';b.disabled=false;return}
+ if(G.bt&&!G.host){b.textContent='Ждём хоста…';b.disabled=true;return}
+ if(G.bt&&G.host&&G.oppShown<G.r){b.textContent='Ждём соперника…';b.disabled=true;return}
+ b.textContent='Дальше ▶';b.disabled=false}
+$('#rNext').onclick=()=>{SND.tap();if(G.r>=G.rounds){G.finalShown=true;renderFinal();show('s-final')}else nextRound()};
+
+/* ============ ИТОГИ ============ */
+function renderFinal(){
+ if(!G)return;const kind=G.mode;let me,op=null,oppDone=true,avg;
+ if(kind==='map'){me=G.total;if(G.bt){op=G.opp.total;oppDone=G.opp.done}avg=me/G.qs.length}
+ else{me=G.tot.me;if(G.bt||G.vsCpu)op=G.tot.opp;avg=me/G.rounds}
+ const rk=rankIdx(kind,avg);
+ if(!G.saved){G.saved=true;saveRec(kind,me,avg,G.bestStreak)}
+ let verdict='Игра окончена',emoji='🏁';
+ if(op!==null){
+  if(!oppDone){verdict='Соперник ещё играет…';emoji='⏳'}
+  else if(me>op){verdict='Победа!';emoji='🏆'}
+  else if(me<op){verdict=G.bt?'Поражение':'Компьютер победил';emoji='😔'}
+  else{verdict='Ничья';emoji='🤝'}
+  if(oppDone&&G.bt&&!G.savedBT){G.savedBT=true;const r=Object.assign({},defRec,LS.get('rec',{}));if(me>op)r.w++;else if(me<op)r.l++;else r.d++;LS.set('rec',r)}
+  if(oppDone&&me>op&&!G.sndWin){G.sndWin=true;SND.win();vib([60,40,60,40,120])}}
+ else if(!G.sndWin){G.sndWin=true;SND.win()}
+ const r=RANKS[rk];
+ $('#fBody').innerHTML=`<div class="trophy">${emoji}</div><h2 style="text-align:center;margin:4px 0">${verdict}</h2>`+
+  (op!==null?`<div class="vs"><div>Я<b>${me}</b></div><div>${G.bt?'Соперник':'Компьютер'}<b>${op}</b></div></div>`:`<div class="bigscore">${me}</div>`)+
+  `<div class="rank">${r[0]} ${r[1]}</div><div class="card"><div class="recrow"><span>Среднее за ${kind==='map'?'вопрос':'раунд'}</span><b>${Math.round(avg)}</b></div><div class="recrow"><span>Лучшая серия точных</span><b>${G.bestStreak||0}</b></div></div>`}
+$('#fHome').onclick=()=>{SND.tap();if(G&&G.bt){B.send({t:'bye'});B.close()}G=null;B.role=null;B.active=false;show('s-home')};
+$('#fAgain').onclick=()=>{SND.tap();if(G&&G.bt){B.send({t:'bye'});B.close();G=null;B.role=null;B.active=false;openBT()}else{G=null;launchSolo()}};
+
+/* ============ BLUETOOTH ============ */
+const SVC='0000ffe0-0000-1000-8000-00805f9b34fb',CHR='0000ffe1-0000-1000-8000-00805f9b34fb';
+const B={kind:null,role:null,active:false,connected:false,reconnecting:false,lastId:null,outbox:{},cfg:null,web:{ch:null,buf:'',dev:null},
+ init(){this.kind=window.AndroidBT?'android':(navigator.bluetooth?'web':null)},
+ send(m){try{const s=JSON.stringify(m);if(this.kind==='android')window.AndroidBT.send(s);else if(this.kind==='web'&&this.web.ch)this.webWrite(s+'\n')}catch(e){}},
+ keep(m){this.outbox[m.t+':'+(m.r!==undefined?m.r:(m.i!==undefined?m.i:''))]=m;this.send(m)},
+ resend(){Object.values(this.outbox).forEach(m=>this.send(m))},
+ host(){try{window.AndroidBT.startHost()}catch(e){toast('Не удалось создать игру')}},
+ scan(){if(this.kind==='android'){try{window.AndroidBT.scan()}catch(e){toast('Не удалось начать поиск')}}else if(this.kind==='web')this.webConnect()},
+ connect(id){try{window.AndroidBT.connect(id)}catch(e){toast('Не удалось подключиться')}},
+ close(){try{if(this.kind==='android'&&window.AndroidBT.disconnect)window.AndroidBT.disconnect();else if(this.web.dev&&this.web.dev.gatt)this.web.dev.gatt.disconnect()}catch(e){}this.connected=false},
+ async webWrite(s){const b=new TextEncoder().encode(s);for(let i=0;i<b.length;i+=20)await this.web.ch.writeValue(b.slice(i,i+20))},
+ async webConnect(){
+  try{const dev=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]}]});this.web.dev=dev;
+   dev.addEventListener('gattserverdisconnected',()=>window.onBTDisconnected());
+   $('#joinStatus').textContent='Подключаемся…';const srv=await dev.gatt.connect();const svc=await srv.getPrimaryService(SVC);const ch=await svc.getCharacteristic(CHR);
+   await ch.startNotifications();const dec=new TextDecoder();this.web.buf='';
+   ch.addEventListener('characteristicvaluechanged',e=>{this.web.buf+=dec.decode(e.target.value);let i;while((i=this.web.buf.indexOf('\n'))>=0){const line=this.web.buf.slice(0,i);this.web.buf=this.web.buf.slice(i+1);window.onBTMessage(line)}});
+   this.web.ch=ch;this.role='guest';window.onBTConnected()}catch(e){$('#joinStatus').textContent='Не удалось подключиться через браузер.'}}};
+B.init();
+function openBT(){
+ const h=$('#btHint');
+ if(!B.kind){h.textContent='Для игры по Bluetooth установите Android-приложение. Одиночные режимы (Карта и Таблица) работают без него.';h.classList.remove('hidden')}
+ else if(B.kind==='web'){h.textContent='Браузерный Bluetooth (экспериментально): доступно только подключение к устройству. Создать игру можно в Android-приложении.';h.classList.remove('hidden')}
+ else h.classList.add('hidden');
+ $('#btHost').disabled=B.kind!=='android';$('#btJoin').disabled=!B.kind;show('s-bt')}
+$('#btHost').onclick=()=>{SND.tap();SU={kind:'map',bt:true,rounds:S.rounds,topic:S.topic,time:S.time,opp:S.opp};openSetup()};
+$('#btJoin').onclick=()=>{SND.tap();B.role='guest';$('#devList').innerHTML='';$('#joinStatus').textContent=B.kind==='web'?'Нажмите «Искать» и выберите устройство в списке браузера.':'Нажмите «Искать» и выберите телефон хоста.';show('s-join')};
+$('#btScan').onclick=()=>{SND.tap();$('#devList').innerHTML='';$('#joinStatus').textContent='Поиск устройств…';B.scan()};
+function hostWait(){
+ B.role='host';B.active=true;B.cfg={mode:SU.kind,rounds:SU.rounds,topic:SU.topic,time:SU.time};
+ if(SU.kind==='map')B.cfg.qs=makeQs(SU.rounds,SU.topic);
+ $('#waitTxt').textContent='Ждём соперника… Включите Bluetooth. Соперник нажимает «Подключиться» и выбирает ваш телефон.';show('s-wait');B.host()}
+window.onBTDevice=d=>{try{d=typeof d==='string'?JSON.parse(d):d}catch(e){return}if(!d||!d.id||$('[data-id="'+CSS.escape(d.id)+'"]'))return;
+ const b=document.createElement('button');b.className='dev';b.dataset.id=d.id;b.textContent='📱 '+(d.name||d.id);
+ b.onclick=()=>{SND.tap();B.role='guest';B.active=true;B.lastId=d.id;$('#joinStatus').textContent='Подключаемся к '+(d.name||d.id)+'…';B.connect(d.id)};$('#devList').appendChild(b)};
+window.onBTScanFinished=()=>{if(curScreen==='s-join')$('#joinStatus').textContent=$('#devList').children.length?'Выберите устройство хоста:':'Устройства не найдены. Нажмите «Искать» ещё раз.'};
+window.onBTError=m=>toast(m||'Ошибка Bluetooth');
+window.onBTConnected=()=>{
+ B.connected=true;B.active=true;
+ if(B.reconnecting){B.reconnecting=false;$('#discon').classList.remove('on');toast('Связь восстановлена');B.resend();return}
+ if(B.role==='host'){$('#waitTxt').textContent='Соперник подключён. Начинаем…';B.send(Object.assign({t:'cfg'},B.cfg))}
+ else{B.role='guest';$('#joinStatus').textContent='Подключено. Ждём настройки от хоста…';$('#waitTxt').textContent='Подключено. Ждём настройки от хоста…';show('s-wait')}};
+window.onBTDisconnected=()=>{
+ B.connected=false;
+ if(!B.active)return;
+ if(G&&!(G.mode==='map'&&G.finalShown&&G.opp.done)&&!G.over){$('#disTxt').textContent='Соединение с соперником оборвалось. Игра сохранена, можно переподключиться.';$('#discon').classList.add('on')}
+ else if(!G){B.active=false;B.role=null;toast('Соединение потеряно');if(['s-wait','s-join'].includes(curScreen))show('s-bt')}};
+$('#disRe').onclick=()=>{SND.tap();B.reconnecting=true;$('#disTxt').textContent='Подключаемся…';if(B.role==='host')B.host();else if(B.lastId)B.connect(B.lastId);else B.scan()};
+$('#disExit').onclick=()=>{$('#discon').classList.remove('on');B.reconnecting=false;quitGame()};
+window.onBTMessage=s=>{let m;try{m=typeof s==='string'?JSON.parse(s):s}catch(e){return}if(m&&m.t)onMsg(m)};
+function startBTGame(c,isHost){
+ B.outbox={};
+ if(c.mode==='map')startMap({qs:c.qs,bt:true});else startTable({rounds:c.rounds,time:c.time,bt:true,host:isHost,vsCpu:false})}
+function onMsg(m){
+ switch(m.t){
+  case'cfg':if(B.role!=='guest')break;B.cfg=m;B.send({t:'ready'});$('#waitTxt').textContent='Игра скоро начнётся…';show('s-wait');break;
+  case'ready':if(B.role==='host'&&!G){B.send({t:'go'});startBTGame(B.cfg,true)}break;
+  case'go':if(B.role==='guest'&&!G&&B.cfg)startBTGame(B.cfg,false);break;
+  case'score':if(G&&G.mode==='map'){G.opp.total=m.total;G.opp.idx=m.i+1;updBoard();if(G.finalShown)renderFinal()}break;
+  case'done':if(G&&G.mode==='map'){G.opp.done=true;G.opp.total=m.total;updBoard();if(G.finalShown)renderFinal()}break;
+  case'letter':if(G&&G.mode==='table'&&!G.host&&m.r===G.r+1)beginRound(m.l);break;
+  case'stop':if(G&&G.mode==='table'&&m.r===G.r)oppStopNotice();break;
+  case'ans':if(G&&G.mode==='table'&&m.r===G.r&&!G.oppAns){G.oppAns={cells:m.cells,fullAt:m.fullAt};if(G.ended)proceedReview()}break;
+  case'rev':if(G&&G.mode==='table'&&m.r===G.r&&!G.oppRev){G.oppRev=m.ok||{};tryFinishRound()}break;
+  case'shown':if(G){G.oppShown=Math.max(G.oppShown||0,m.r);updNext()}break;
+  case'bye':if(G&&G.bt&&!(G.finalShown)){toast('Соперник вышел из игры');G.over=true;$('#discon').classList.remove('on');B.active=false;stopTimer();waitOff();G=null;B.role=null;show('s-home')}else if(G&&G.finalShown){G.over=true;if(G.mode==='map'){G.opp.done=true;renderFinal()}}break}}
+
+/* ============ НАСТРОЙКИ ============ */
+function renderSettings(){
+ $$('.sw').forEach(b=>{const k=b.dataset.k;b.classList.toggle('on',!!S[k]);b.onclick=()=>{S[k]=!S[k];saveS();b.classList.toggle('on',!!S[k]);SND.tap();if(k==='labels')setTiles()}});
+ chips($('#stTime'),[[30,'30 с'],[60,'60 с'],[90,'90 с']],S.time,v=>{S.time=+v;saveS()});
+ chips($('#stRounds'),[[5,'5'],[7,'7'],[10,'10']],S.rounds,v=>{S.rounds=+v;saveS()})}
+$('#hTheme').onclick=()=>{SND.tap();openThemes()};$('#hSet').onclick=()=>{SND.tap();show('s-settings')};
+$('#stTheme').onclick=openThemes;$('#thClose').onclick=()=>$('#themeModal').classList.remove('on');
+$('#recReset').onclick=()=>ask('Сбросить все рекорды?',()=>{LS.set('rec',defRec);renderRecords()},'Сбросить');
+
+/* ============ ЗАПУСК ============ */
+applyTheme(S.theme);
+if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
